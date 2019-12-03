@@ -98,7 +98,6 @@ public class CriteriaQueryTests {
 		// then
 		assertThat(sampleEntity1).isNotNull();
 	}
-
 	// @Ignore("DATAES-30")
 	@Test
 	public void shouldPerformOrOperation() {
@@ -805,6 +804,50 @@ public class CriteriaQueryTests {
 		// then
 		assertThat(page.getTotalElements()).isEqualTo(1);
 		assertThat(page.getContent().get(0).getMessage()).isEqualTo("ab");
+	}
+
+	@Test
+	public void shouldPerformChainedOrAndOperation() {
+
+		// given
+		List<IndexQuery> indexQueries = new ArrayList<>();
+
+		String documentId1 = "1";
+		SampleEntity sampleEntity1 = new SampleEntity();
+		sampleEntity1.setId(documentId1);
+		sampleEntity1.setMessage("messageA");
+		sampleEntity1.setVersion(System.currentTimeMillis());
+
+		IndexQuery indexQuery1 = new IndexQuery();
+		indexQuery1.setId(documentId1);
+		indexQuery1.setObject(sampleEntity1);
+		indexQueries.add(indexQuery1);
+
+		String documentId2 = "22";
+		SampleEntity sampleEntity2 = new SampleEntity();
+		sampleEntity2.setId(documentId2);
+		sampleEntity2.setMessage("messageB");
+		sampleEntity2.setVersion(System.currentTimeMillis());
+
+		IndexQuery indexQuery2 = new IndexQuery();
+		indexQuery2.setId(documentId2);
+		indexQuery2.setObject(sampleEntity2);
+		indexQueries.add(indexQuery2);
+
+		operations.bulkIndex(indexQueries, index);
+		operations.refresh(SampleEntity.class);
+
+		Criteria messageCriteria = new Criteria("message").contains("messageA").or("message").contains("messageB");
+		CriteriaQuery criteriaQuery = new CriteriaQuery(new Criteria("id").contains("2").and(messageCriteria));
+
+		// when
+		Page<SampleEntity> result = operations.queryForPage(criteriaQuery, SampleEntity.class, index);
+
+		System.out.println(result.getTotalElements());
+
+		// then
+		assertThat(result.getTotalElements()).isEqualTo(1);
+		assertThat(result.get().findFirst().get().getMessage()).isEqualTo("messageB");
 	}
 
 	@Test // DATAES-213
